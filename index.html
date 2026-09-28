@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MG628 Instructor Control Center</title>
+<meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<style>
+:root{--ink:#17231d;--soft:#5d6a63;--paper:#f7f2e6;--band:#e7eee8;--rule:#b8b09c;--accent:#9a451d;--teal:#0d6b66;--danger:#9b2f22;--ok:#216e45;--white:#fffdf7}
+*{box-sizing:border-box}body{margin:0;color:var(--ink);background:repeating-linear-gradient(0deg,var(--paper) 0 23px,var(--band) 23px 46px);font-family:Georgia,'Times New Roman',serif;line-height:1.45}
+.topbar{position:sticky;top:0;z-index:5;background:rgba(247,242,230,.97);border-bottom:1px solid var(--rule);padding:12px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px}.topbar a{color:var(--accent);text-decoration:none;font-weight:700}.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:13px}
+.wrap{max-width:1180px;margin:auto;padding:34px 22px 70px}.hero{background:var(--white);border:1px solid var(--rule);padding:28px;margin-bottom:20px}.hero h1{font-size:clamp(30px,4vw,54px);margin:0 0 8px}.hero p{margin:6px 0;color:var(--soft)}
+.panel{background:var(--white);border:1px solid var(--rule);margin:18px 0}.panel-head{padding:11px 16px;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between;gap:16px;align-items:center;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;text-transform:uppercase;letter-spacing:.04em}.panel-body{padding:18px}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}.span3{grid-column:span 3}.span4{grid-column:span 4}.span6{grid-column:span 6}.span8{grid-column:span 8}.span12{grid-column:span 12}@media(max-width:800px){.span3,.span4,.span6,.span8{grid-column:span 12}}
+label{font-weight:700;display:block;margin-bottom:5px}input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--rule);background:#fffef9;font:inherit}button{border:1px solid var(--ink);background:#fffef9;color:var(--ink);padding:9px 13px;cursor:pointer;font-weight:700}button.primary{background:var(--ink);color:white}button.accent{background:var(--accent);color:white;border-color:var(--accent)}button.danger{background:var(--danger);color:white;border-color:var(--danger)}button:disabled{opacity:.5;cursor:not-allowed}.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.notice{padding:10px 12px;border-left:4px solid var(--teal);background:#edf7f5;margin:10px 0}.notice.error{border-left-color:var(--danger);background:#fff0ed;color:#6e2119}.notice.ok{border-left-color:var(--ok);background:#edf7ef}.hidden{display:none!important}
+table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:9px 8px;border-bottom:1px solid #ddd6c5;text-align:left;vertical-align:top}th{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;text-transform:uppercase}td.small{font-size:13px}.badge{display:inline-block;padding:2px 7px;border:1px solid var(--rule);font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11px}.badge.ok{border-color:#6b997d;color:#195834;background:#eef8f1}.badge.warn{border-color:#c08b6f;color:#7b3415;background:#fff3e9}.badge.test{border-color:#7e76a8;color:#4c447a;background:#f0eff9}.muted{color:var(--soft)}.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px}.tabs button.active{background:var(--ink);color:#fff}.stat{border:1px solid var(--rule);padding:14px;background:#fff}.stat b{display:block;font-size:24px}.scroll{overflow:auto}.dropzone{border:2px dashed var(--rule);padding:18px;text-align:center;background:#fbf8f0}.right{text-align:right}
+
+.setup-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:4px 0 18px}.setup-step{display:flex;gap:12px;align-items:flex-start;text-align:left;padding:14px;background:#fff;border:1px solid var(--rule)}.setup-step.active{background:var(--ink);color:#fff}.setup-step small{display:block;margin-top:4px;font-weight:400;line-height:1.3}.stepnum{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;border:1px solid currentColor;border-radius:50%;font-family:ui-monospace,SFMono-Regular,Consolas,monospace}.setup-card{border:1px solid var(--rule);padding:18px;background:#fff;margin:14px 0}.setup-card h2{margin:2px 0 4px;font-size:25px}.setup-card p{margin:0 0 16px;color:var(--soft)}.current-structure{margin-top:20px;padding:16px;border-top:1px solid var(--rule);background:#fbf8f0}.section-chip{display:flex;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid #ddd6c5}.section-chip:last-child{border-bottom:0}.section-chip strong{display:block}.section-chip small{color:var(--soft)}@media(max-width:800px){.setup-steps{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="topbar"><a href="../">← Course Home</a><span class="mono">MG628 · Instructor Control Center</span></div>
+<div class="wrap">
+<section class="hero"><div class="mono">MONROE UNIVERSITY · PROFESSOR ACCESS</div><h1>Instructor Control Center</h1><p>Manage rosters, test student access, and review participation records by term, course, and section.</p><p class="mono muted">Build 2026-09-24.5</p></section>
+
+<section class="panel" id="authCheck"><div class="panel-head"><span>Instructor access</span><span>Supabase Auth</span></div><div class="panel-body"><div class="notice">Checking your saved instructor session…</div></div></section>
+
+<section class="panel hidden" id="loginPanel"><div class="panel-head"><span>Instructor sign in</span><span>Supabase Auth</span></div><div class="panel-body">
+<div class="grid"><div class="span6"><label for="email">Email</label><input id="email" type="email" autocomplete="email" value="kassohf@gmail.com"></div><div class="span6"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password"></div></div>
+<div class="toolbar"><button class="primary" id="signIn">Sign in</button><button id="forgot">Forgot password</button><div class="muted small" style="margin-top:10px">Sign-in is required each time you open the Instructor Control Center.</div><button id="signOut" class="hidden">Sign out</button></div><div id="loginMsg" class="notice hidden"></div>
+</div></section>
+
+<section id="app" class="hidden">
+<div class="panel"><div class="panel-head"><span>Academic context</span><span id="who"></span></div><div class="panel-body"><div class="grid"><div class="span4"><label for="sectionSelect">Section</label><select id="sectionSelect"></select></div><div class="span8"><div class="grid"><div class="span4 stat"><span class="muted">Roster</span><b id="statRoster">0</b></div><div class="span4 stat"><span class="muted">Accounts linked</span><b id="statLinked">0</b></div><div class="span4 stat"><span class="muted">Completed</span><b id="statComplete">0</b></div></div></div></div></div></div>
+
+<div class="tabs"><button data-tab="setup">Academic Setup</button><button data-tab="roster" class="active">Roster</button><button data-tab="results">Participation Results</button><button data-tab="test">My Test Account</button></div>
+
+
+<section class="panel tabpage hidden" id="tab-setup"><div class="panel-head"><span>Academic setup</span><span>Admin only</span></div><div class="panel-body">
+<div class="notice"><b>Use this page only when the academic structure changes.</b> Rosters are managed separately under the <b>Roster</b> tab.</div>
+<div class="setup-steps">
+  <button class="setup-step active" data-setup="course"><span class="stepnum">1</span><span><b>Course</b><small>Create a course such as MG628 or CS650.</small></span></button>
+  <button class="setup-step" data-setup="term"><span class="stepnum">2</span><span><b>Academic Term</b><small>Create Fall 2026, Spring 2027, etc.</small></span></button>
+  <button class="setup-step" data-setup="section"><span class="stepnum">3</span><span><b>Section</b><small>Connect a course to a term and enter Monroe section details.</small></span></button>
+</div>
+
+<div class="setup-card" id="setup-course">
+  <div class="setup-title"><div><div class="mono">STEP 1</div><h2>Add or update a course</h2><p>Create the permanent course record once. You do not recreate MG628 every semester.</p></div></div>
+  <div class="grid">
+    <div class="span4"><label>Course code</label><input id="newCourseCode" placeholder="Example: MG628"></div>
+    <div class="span8"><label>Course title</label><input id="newCourseTitle" placeholder="Example: Data Analysis for Managerial Decision-Making"></div>
+  </div>
+  <div class="toolbar"><button class="accent" id="createCourse">Save course</button></div>
+</div>
+
+<div class="setup-card hidden" id="setup-term">
+  <div class="setup-title"><div><div class="mono">STEP 2</div><h2>Add or update an academic term</h2><p>Create each semester once, then reuse it for all courses and sections offered during that term.</p></div></div>
+  <div class="grid">
+    <div class="span4"><label>Term code</label><input id="newTermCode" placeholder="Example: 2026FA"></div>
+    <div class="span8"><label>Term name</label><input id="newTermName" placeholder="Example: Fall 2026"></div>
+    <div class="span6"><label>Term start date</label><input id="newTermStart" type="date"></div>
+    <div class="span6"><label>Term end date</label><input id="newTermEnd" type="date"></div>
+  </div>
+  <div class="toolbar"><button class="accent" id="createTerm">Save academic term</button></div>
+</div>
+
+<div class="setup-card hidden" id="setup-section">
+  <div class="setup-title"><div><div class="mono">STEP 3</div><h2>Add or update a section</h2><p>Choose the existing course and term first. Then enter the section information exactly as it appears in Monroe MyServices.</p></div></div>
+  <div class="grid">
+    <div class="span6"><label>Course</label><select id="newSectionCourse"></select></div>
+    <div class="span6"><label>Academic term</label><select id="newSectionTerm"></select></div>
+    <div class="span4"><label>Section code</label><input id="newSectionCode" placeholder="Example: 159W"></div>
+    <div class="span4"><label>Display code</label><input id="newSectionDisplay" placeholder="Example: MG-628-159W"></div>
+    <div class="span4"><label>Status</label><select id="newSectionStatus"><option value="active">Active</option><option value="planned">Planned</option><option value="completed">Completed</option><option value="archived">Archived</option></select></div>
+    <div class="span12"><label>Section title</label><input id="newSectionTitle" placeholder="Example: Data Analysis for Managerial Decision-Making"></div>
+    <div class="span6"><label>Campus</label><input id="newSectionCampus" placeholder="Example: New Rochelle"></div>
+    <div class="span6"><label>Location / room</label><input id="newSectionLocation" placeholder="Example: TBD"></div>
+    <div class="span4"><label>Meeting day</label><select id="newSectionDay"><option value="">Select day</option><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option></select></div>
+    <div class="span4"><label>Start time</label><input id="newSectionStartTime" type="time"></div>
+    <div class="span4"><label>End time</label><input id="newSectionEndTime" type="time"></div>
+    <div class="span6"><label>Section start date</label><input id="newSectionStartDate" type="date"></div>
+    <div class="span6"><label>Section end date</label><input id="newSectionEndDate" type="date"></div>
+    <div class="span4"><label>Seat capacity</label><input id="newSectionCapacity" type="number" min="0" placeholder="Example: 25"></div>
+    <div class="span4"><label>Seats available</label><input id="newSectionAvailable" type="number" min="0" placeholder="Example: 11"></div>
+    <div class="span4"><label>Waitlist</label><input id="newSectionWaitlist" type="number" min="0" value="0"></div>
+  </div>
+  <div class="toolbar"><button class="primary" id="createSection">Save section</button></div>
+</div>
+
+<div id="setupMsg" class="notice hidden"></div>
+<div class="current-structure"><div class="mono">CURRENT STRUCTURE</div><h3>Already configured</h3><div id="existingSections"></div></div>
+</div></section>
+
+<section class="panel tabpage" id="tab-roster"><div class="panel-head"><span>Student roster</span><span>Instructor-controlled access</span></div><div class="panel-body">
+<div class="grid"><div class="span3"><label>Student name</label><input id="studentName" placeholder="Jane Doe"></div><div class="span3"><label>School email</label><input id="studentEmail" type="email" placeholder="jane.doe@monroeu.edu"></div><div class="span3"><label>Student ID</label><input id="studentId" placeholder="Optional"></div><div class="span3"><label>Status</label><select id="studentStatus"><option value="invited">Invited</option><option value="active">Active</option><option value="dropped">Dropped</option><option value="withdrawn">Withdrawn</option></select></div></div>
+<div class="toolbar"><button class="accent" id="addStudent">Add / update student</button><button id="refreshRoster">Refresh roster</button></div>
+<hr style="border:0;border-top:1px solid var(--rule);margin:20px 0">
+<div class="grid"><div class="span8"><div class="dropzone"><b>CSV roster import</b><p class="muted">Accepted Monroe roster headers directly: Student Name, Student ID, Class Level, Preferred Email. Also accepts generic email/name/id/status headers.</p><input id="csvFile" type="file" accept=".csv,text/csv"></div></div><div class="span4"><label>Import preview</label><textarea id="csvPreview" rows="6" readonly placeholder="Choose a CSV file"></textarea><div class="toolbar"><button class="primary" id="importCsv">Import CSV</button></div></div></div>
+<div id="rosterMsg" class="notice hidden"></div>
+<div class="scroll"><table><thead><tr><th>Name</th><th>Email</th><th>ID</th><th>Roster</th><th>Account</th><th>Enrollment</th><th>Actions</th></tr></thead><tbody id="rosterBody"></tbody></table></div>
+</div></section>
+
+<section class="panel tabpage hidden" id="tab-results"><div class="panel-head"><span>Participation results</span><span>Server-verified</span></div><div class="panel-body">
+<div class="setup-card" style="margin-bottom:18px"><div class="setup-title"><div><div class="mono">ASSIGNMENT AVAILABILITY</div><h2>Publish / unpublish participation</h2><p>Publishing makes the participation available to students in this section. Unpublishing immediately blocks new/resumed access and automatically changes the course homepage button to <strong>PARTICIPATION CLOSED</strong> when no section offering remains published.</p></div></div><div id="offeringMsg" class="notice hidden"></div><div class="scroll"><table><thead><tr><th>Assignment</th><th>Page</th><th>Status</th><th>Open</th><th>Due</th><th>Close</th><th>Action</th></tr></thead><tbody id="offeringsBody"></tbody></table></div></div>
+<div class="toolbar"><button class="primary" id="refreshResults">Refresh results</button><button id="exportResults">Export CSV</button></div><div id="resultsMsg" class="notice hidden"></div><div class="scroll"><table><thead><tr><th>Student</th><th>Assignment</th><th>Track</th><th>Progress</th><th>Status</th><th>Score</th><th>Verified</th><th>Last activity</th></tr></thead><tbody id="resultsBody"></tbody></table></div></div></section>
+
+<section class="panel tabpage hidden" id="tab-test"><div class="panel-head"><span>My test account</span><span>Reversible instructor test mode</span></div><div class="panel-body"><p>Use your current instructor login as a temporary student in the selected section. This creates a clearly marked test roster entry and active enrollment without changing your admin role.</p><div class="notice">Test activity is stored like student activity so you can verify the full workflow. Removing test access drops the test enrollment but preserves historical test records for auditability.</div><div class="toolbar"><button class="accent" id="enableTest">Enroll my account as test student</button><button class="danger" id="disableTest">Remove my test enrollment</button><a id="openStudent" href="../week01/" target="_blank"><button type="button">Open student activity ↗</button></a></div><div id="testMsg" class="notice hidden"></div></div></section>
+</section>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL='https://irnrjzeejalbbqdrbzmj.supabase.co';
+const SUPABASE_KEY='sb_publishable_aj2vpjfJrSMvjTxcKuC0pQ_pf7JbDo2';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:true,detectSessionInUrl:false}});
+const API=SUPABASE_URL+'/functions/v1/instructor-api';
+let session=null, bootstrap=null, csvRows=[], csvFileName='';
+const $=id=>document.getElementById(id);
+function formatErr(e){
+  if(e==null)return 'Unknown error';
+  if(typeof e==='string')return e;
+  if(e instanceof Error)return formatErr(e.message);
+  if(typeof e==='object'){
+    if(e.error!==undefined)return formatErr(e.error);
+    if(e.message!==undefined)return formatErr(e.message);
+    if(e.context!==undefined)return formatErr(e.context);
+    try{return JSON.stringify(e)}catch{return String(e)}
+  }
+  return String(e)
+}
+function msg(id,text,type=''){const e=$(id);e.textContent=formatErr(text);e.className='notice '+type;e.classList.remove('hidden')}
+function clearMsg(id){$(id).classList.add('hidden')}
+async function api(action,payload={}){
+  if(!session)throw new Error('Sign in required');
+  const r=await fetch(API,{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({action,...payload})});
+  const raw=await r.text();
+  let j={};
+  if(raw){try{j=JSON.parse(raw)}catch{j={error:raw}}}
+  if(!r.ok){const detail=j&&j.error!==undefined?formatErr(j.error):formatErr(j);throw new Error(`Instructor API ${r.status}: ${detail}`)}
+  return j
+}
+function showLogin(message=''){
+  $('authCheck').classList.add('hidden');
+  $('app').classList.add('hidden');
+  $('loginPanel').classList.remove('hidden');
+  if(message)msg('loginMsg',message,'error');
+}
+async function init(){
+  // Instructor access is intentionally non-persistent. Every fresh page visit
+  // requires an explicit sign-in, even if another page on this site has a
+  // Supabase session. This avoids silently reopening the admin dashboard.
+  session=null;
+  $('authCheck').classList.add('hidden');
+  $('app').classList.add('hidden');
+  $('loginPanel').classList.remove('hidden');
+  clearMsg('loginMsg');
+}
+async function loadApp(){
+  try{
+    bootstrap=await api('bootstrap');
+    $('authCheck').classList.add('hidden');
+    $('loginPanel').classList.add('hidden');
+    $('app').classList.remove('hidden');
+    $('signOut').classList.remove('hidden');
+    $('who').textContent=(bootstrap.profile.full_name||bootstrap.profile.email)+' · '+bootstrap.profile.app_role.toUpperCase();
+    renderAcademic();
+    if(!bootstrap.sections.length)throw new Error('No sections are assigned to this instructor account.');
+    await refreshAll();
+  }catch(e){
+    await sb.auth.signOut();session=null;showLogin(formatErr(e));
+  }
+}
+function sectionLabel(s){return `${s.term.name} · ${s.course.code}-${s.section_code}`}
+function selectedSection(){return (bootstrap?.sections||[]).find(s=>s.id===$('sectionSelect').value)||null}
+function renderAcademic(){const sel=$('sectionSelect'),keep=sel.value||localStorage.getItem('mg628InstructorSection')||'';sel.innerHTML='';const rows=(bootstrap.sections||[]).slice().sort((a,b)=>{const ad=a.term.start_date||'',bd=b.term.start_date||'';return bd.localeCompare(ad)||a.course.code.localeCompare(b.course.code)||a.section_code.localeCompare(b.section_code)});rows.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=sectionLabel(s);sel.appendChild(o)});if(keep&&[...sel.options].some(o=>o.value===keep))sel.value=keep;else{const preferred=rows.find(s=>s.course.code==='MG628'&&s.section_code==='159W'&&s.term.code==='2026FA');if(preferred)sel.value=preferred.id}const cs=$('newSectionCourse'),ts=$('newSectionTerm');cs.innerHTML='';ts.innerHTML='';(bootstrap.courses||[]).forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=`${c.code} · ${c.title||''}`;cs.appendChild(o)});(bootstrap.terms||[]).forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.name;ts.appendChild(o)});renderExistingSections();updateRosterTarget()}
+
+async function reloadBootstrap(){bootstrap=await api('bootstrap');renderAcademic();await refreshAll()}
+async function refreshAll(){await Promise.all([loadRoster(),loadResults()])}
+$('signIn').onclick=async()=>{clearMsg('loginMsg');const {data,error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error)return msg('loginMsg',error.message,'error');session=data.session;await loadApp()};
+$('signOut').onclick=async()=>{await sb.auth.signOut();location.reload()};
+$('forgot').onclick=async()=>{const email=$('email').value.trim();if(!email)return msg('loginMsg','Enter your email first.','error');const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.href});msg('loginMsg',error?error.message:'Password reset email requested.',error?'error':'ok')};
+
+document.querySelectorAll('.setup-step').forEach(btn=>btn.onclick=()=>{document.querySelectorAll('.setup-step').forEach(x=>x.classList.toggle('active',x===btn));['course','term','section'].forEach(k=>$('setup-'+k).classList.toggle('hidden',k!==btn.dataset.setup));});
+function renderExistingSections(){const host=$('existingSections');if(!host)return;host.innerHTML='';const rows=(bootstrap.sections||[]).slice().sort((a,b)=>(a.term.name+a.course.code+a.section_code).localeCompare(b.term.name+b.course.code+b.section_code));if(!rows.length){host.innerHTML='<div class="muted">No sections configured yet.</div>';return}for(const s of rows){const d=document.createElement('div');d.className='section-chip';const code=s.course.code+'-'+s.section_code;const when=[s.campus,s.meeting_day,s.start_time&&s.end_time?String(s.start_time).slice(0,5)+'–'+String(s.end_time).slice(0,5):''].filter(Boolean).join(' · ');d.innerHTML=`<div><strong>${esc(s.term.name)} · ${esc(code)}</strong><small>${esc(s.title||s.course.title||'')}${when?' · '+esc(when):''}</small></div><span class="badge ${s.status==='active'?'ok':'warn'}">${esc(s.status)}</span>`;host.appendChild(d)}}
+$('createCourse').onclick=async()=>{try{await api('create_course',{code:$('newCourseCode').value,title:$('newCourseTitle').value});msg('setupMsg','Course saved.','ok');await reloadBootstrap()}catch(e){msg('setupMsg',formatErr(e),'error')}};
+$('createTerm').onclick=async()=>{try{await api('create_term',{code:$('newTermCode').value,name:$('newTermName').value,start_date:$('newTermStart').value,end_date:$('newTermEnd').value});msg('setupMsg','Academic term saved.','ok');await reloadBootstrap()}catch(e){msg('setupMsg',formatErr(e),'error')}};
+$('createSection').onclick=async()=>{try{await api('create_section',{course_id:$('newSectionCourse').value,term_id:$('newSectionTerm').value,section_code:$('newSectionCode').value,display_code:$('newSectionDisplay').value,title:$('newSectionTitle').value,campus:$('newSectionCampus').value,meeting_day:$('newSectionDay').value,start_time:$('newSectionStartTime').value,end_time:$('newSectionEndTime').value,section_start_date:$('newSectionStartDate').value,section_end_date:$('newSectionEndDate').value,location:$('newSectionLocation').value,seat_capacity:$('newSectionCapacity').value,seats_available:$('newSectionAvailable').value,waitlist_count:$('newSectionWaitlist').value,status:$('newSectionStatus').value});msg('setupMsg','Section saved and added to the section selector.','ok');await reloadBootstrap()}catch(e){msg('setupMsg',formatErr(e),'error')}};
+
+$('sectionSelect').onchange=()=>{
+  localStorage.setItem('mg628InstructorSection',$('sectionSelect').value);
+  updateRosterTarget();
+  updateCsvImportState();
+  refreshAll();
+};
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.tabpage').forEach(p=>p.classList.add('hidden'));$('tab-'+b.dataset.tab).classList.remove('hidden')});
+function updateRosterTarget(){const sec=selectedSection();const el=$('rosterTarget');if(!el||!sec)return;el.textContent=`Managing roster for ${sectionLabel(sec)}${sec.campus?' · '+sec.campus:''}. Upload only the roster for this exact section.`}
+function csvTargetMismatch(){const sec=selectedSection();if(!sec||!csvFileName)return null;const n=csvFileName.toUpperCase();const m=n.match(/([A-Z]{2,})[-_ ]?(\d{3})[-_ ]?([0-9]{3}[A-Z])/);if(!m)return null;const fileCourse=(m[1]+m[2]).replace(/[^A-Z0-9]/g,'');const fileSection=m[3];const selectedCourse=String(sec.course.code||'').toUpperCase().replace(/[^A-Z0-9]/g,'');const selectedSectionCode=String(sec.section_code||'').toUpperCase();if(fileCourse!==selectedCourse||fileSection!==selectedSectionCode)return `This CSV appears to be for ${m[1]}-${m[2]}-${fileSection}, but you selected ${sectionLabel(sec)}. Choose the matching section before importing.`;return null}
+function updateCsvImportState(announce=true){
+  const btn=$('importCsv');
+  const sec=selectedSection();
+  if(!btn)return false;
+  const mismatch=csvRows.length?csvTargetMismatch():null;
+  const ready=!!sec&&csvRows.length>0;
+  // Keep the button clickable at all times. Validation happens when clicked.
+  btn.disabled=false;
+  btn.removeAttribute('disabled');
+  btn.setAttribute('aria-disabled','false');
+  if(announce){
+    if(!sec){
+      msg('rosterMsg','Choose a section before importing.','error');
+    }else if(csvRows.length){
+      const warning=mismatch?` Filename warning: ${mismatch} The selected section will be used as the import target.`:'';
+      msg('rosterMsg',`Ready to import ${csvRows.length} students into ${sectionLabel(sec)}. Click Import CSV.${warning}`,mismatch?'':'ok');
+    }else{
+      msg('rosterMsg','Choose a CSV file containing student email addresses.','');
+    }
+  }
+  return ready;
+}
+async function loadRoster(){const sid=$('sectionSelect').value;if(!sid)return;clearMsg('rosterMsg');msg('rosterMsg','Loading roster…','');try{const r=await api('roster_list',{section_id:sid});if(!r||!Array.isArray(r.rows))throw new Error('Roster API returned an unexpected response.');$('statRoster').textContent=r.rows.length;$('statLinked').textContent=r.rows.filter(x=>x.linked_user_id).length;const tb=$('rosterBody');tb.innerHTML='';for(const x of r.rows){const tr=document.createElement('tr');const account=x.linked_user_id?'<span class="badge ok">linked</span>':'<span class="badge warn">not registered</span>';const test=x.is_test_account?' <span class="badge test">TEST</span>':'';tr.innerHTML=`<td>${esc(x.expected_full_name||'')}${test}</td><td class="small">${esc(x.email)}</td><td>${esc(x.institutional_id||'')}</td><td><span class="badge">${esc(x.roster_status)}</span></td><td>${account}</td><td>${x.enrollment?'<span class="badge '+(x.enrollment.status==='active'?'ok':'warn')+'">'+esc(x.enrollment.status)+'</span>':'—'}</td><td><button data-status="active" data-id="${x.id}">Activate</button> <button data-status="dropped" data-id="${x.id}">Drop</button></td>`;tb.appendChild(tr)}tb.querySelectorAll('button[data-status]').forEach(b=>b.onclick=async()=>{await api('roster_status',{section_id:sid,roster_id:b.dataset.id,roster_status:b.dataset.status});await loadRoster()});msg('rosterMsg',`Loaded ${r.rows.length} roster records for ${sectionLabel(selectedSection())}.`,'ok')}catch(e){$('statRoster').textContent='—';$('statLinked').textContent='—';msg('rosterMsg',formatErr(e),'error')}}
+$('addStudent').onclick=async()=>{try{await api('roster_upsert',{section_id:$('sectionSelect').value,email:$('studentEmail').value,expected_full_name:$('studentName').value,institutional_id:$('studentId').value,roster_status:$('studentStatus').value});msg('rosterMsg','Student saved.','ok');$('studentName').value='';$('studentEmail').value='';$('studentId').value='';await loadRoster()}catch(e){msg('rosterMsg',formatErr(e),'error')}};
+$('refreshRoster').onclick=loadRoster;
+$('csvFile').onchange=async e=>{const f=e.target.files[0];if(!f){csvRows=[];csvFileName='';$('csvPreview').value='';updateCsvImportState(false);return;}csvFileName=f.name;const text=await f.text();csvRows=parseCsv(text);$('csvPreview').value=csvRows.slice(0,5).map(x=>JSON.stringify(x)).join('\n');if(!csvRows.length){msg('rosterMsg','No valid student rows were found in this CSV. Check that the file includes a student email column.','error');updateCsvImportState(false);return;}updateCsvImportState(true)};
+$('importCsv').onclick=async()=>{try{if(!updateCsvImportState(false))throw new Error('Choose a section and load a CSV containing valid student email rows.');const sec=selectedSection();const mismatch=csvTargetMismatch();if(mismatch&&!confirm(`${mismatch}\n\nImport these students into ${sectionLabel(sec)} anyway?`))return;const r=await api('roster_bulk',{section_id:sec.id,rows:csvRows});msg('rosterMsg',`Imported ${r.count} roster rows into ${sectionLabel(sec)}.`,'ok');await loadRoster()}catch(e){msg('rosterMsg',formatErr(e),'error')}};
+function parseCsv(text){const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/).filter(x=>x.trim());if(lines.length<2)return[];const split=line=>{const out=[];let cur='',q=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){if(q&&line[i+1]==='"'){cur+='"';i++}else q=!q}else if(c===','&&!q){out.push(cur.trim());cur=''}else cur+=c}out.push(cur.trim());return out};const h=split(lines[0]).map(x=>x.toLowerCase().trim().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,''));return lines.slice(1).map(line=>{const v=split(line),o={};h.forEach((k,i)=>o[k]=v[i]??'');o.expected_full_name=o.expected_full_name||o.full_name||o.name||o.student_name||'';o.institutional_id=o.institutional_id||o.student_id||o.id||'';o.email=o.email||o.preferred_email||o.school_email||o.student_email||'';o.class_level=o.class_level||'';return o}).filter(x=>x.email)}
+let lastResults=[];
+async function loadResults(){const sid=$('sectionSelect').value;if(!sid)return;try{const r=await api('results',{section_id:sid});renderOfferings(r.offerings||[],sid);const offerMap=new Map((r.offerings||[]).map(o=>[o.id,o]));const enrMap=new Map((r.enrollments||[]).map(e=>[e.id,e]));const rows=[];for(const s of r.sessions||[]){const e=enrMap.get(s.enrollment_id),o=offerMap.get(s.assignment_offering_id),c=Array.isArray(s.completion)?s.completion[0]:s.completion;if(!e||!o)continue;rows.push({student:e.profile.full_name||e.profile.email,email:e.profile.email,assignment:o.assignment.title,version:o.assignment.version,track:s.track||'',progress:c?c.completion_percentage:0,status:c?c.status:s.status,score:c?.score_percentage??'',verified:c?.verification_code||'',last:s.last_activity_at||''})}lastResults=rows;$('statComplete').textContent=rows.filter(x=>x.status==='complete'||x.status==='overridden').length;const tb=$('resultsBody');tb.innerHTML='';for(const x of rows){const tr=document.createElement('tr');tr.innerHTML=`<td>${esc(x.student)}<div class="muted small">${esc(x.email)}</div></td><td>${esc(x.assignment)} <span class="badge">v${x.version}</span></td><td>${esc(x.track)}</td><td>${x.progress}%</td><td><span class="badge ${x.status==='complete'?'ok':'warn'}">${esc(x.status)}</span></td><td>${x.score===''?'—':x.score+'%'}</td><td>${x.verified?'<span class="badge ok">yes</span>':'—'}</td><td class="small">${x.last?new Date(x.last).toLocaleString():'—'}</td>`;tb.appendChild(tr)}clearMsg('resultsMsg')}catch(e){msg('resultsMsg',formatErr(e),'error')}}
+function fmtDate(v){return v?new Date(v).toLocaleString():'—'}
+function renderOfferings(offerings,sid){const tb=$('offeringsBody');tb.innerHTML='';for(const o of offerings){const tr=document.createElement('tr');const published=o.published===true;tr.innerHTML=`<td><strong>${esc(o.assignment.title)}</strong><div class="muted small">${esc(o.assignment.slug)} · v${esc(o.assignment.version)}</div></td><td class="small">${esc(o.assignment.page_path||'—')}</td><td><span class="badge ${published?'ok':'warn'}">${published?'PUBLISHED':'UNPUBLISHED'}</span></td><td class="small">${fmtDate(o.opens_at)}</td><td class="small">${fmtDate(o.due_at)}</td><td class="small">${fmtDate(o.closes_at)}</td><td><button class="${published?'danger':'accent'}" data-offering="${esc(o.id)}" data-published="${published?'true':'false'}">${published?'Unpublish':'Publish'}</button></td>`;tb.appendChild(tr)}tb.querySelectorAll('button[data-offering]').forEach(b=>b.onclick=async()=>{const next=b.dataset.published!=='true';b.disabled=true;try{await api('offering_publish',{section_id:sid,offering_id:b.dataset.offering,published:next});msg('offeringMsg',next?'Participation published. The course homepage will show it as available when the weekly HTML file exists.':'Participation unpublished. The course homepage will automatically show PARTICIPATION CLOSED when no section offering remains published.','ok');await loadResults()}catch(e){msg('offeringMsg',formatErr(e),'error');b.disabled=false}})}
+$('refreshResults').onclick=loadResults;
+$('exportResults').onclick=()=>{const cols=['student','email','assignment','version','track','progress','status','score','verified','last'];const csv=[cols.join(','),...lastResults.map(r=>cols.map(k=>'"'+String(r[k]??'').replace(/"/g,'""')+'"').join(','))].join('\n');download('participation-results.csv',csv)};
+$('enableTest').onclick=async()=>{try{await api('test_enroll',{section_id:$('sectionSelect').value});msg('testMsg','Your account is now enrolled as a TEST student in this section. Open the student activity to test the full flow.','ok');await loadRoster()}catch(e){msg('testMsg',formatErr(e),'error')}};
+$('disableTest').onclick=async()=>{try{await api('test_remove',{section_id:$('sectionSelect').value});msg('testMsg','Your test enrollment has been dropped. Historical test activity was preserved.','ok');await loadRoster()}catch(e){msg('testMsg',formatErr(e),'error')}};
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function download(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/csv'}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},100)}
+init();
+</script>
+<script src="../assets/week-auto-activate.js" defer></script>
+</body>
+</html>
