@@ -28,7 +28,7 @@
 <section class="hero"><div class="muted">MONROE UNIVERSITY · PROFESSOR ACCESS</div><h1>Instructor Control Center</h1><p>Manage rosters, deadlines, individual reactivation, reminders, and participation results.</p></section>
 <section id="loginPanel" class="panel"><div class="panel-head"><span>Instructor sign in</span><span>Supabase Auth</span></div><div class="panel-body"><div class="grid"><div class="span6"><label>Email</label><input id="email" type="email" autocomplete="email"></div><div class="span6"><label>Password</label><input id="password" type="password" autocomplete="current-password"></div></div><div class="toolbar"><button id="signIn" class="primary">Sign in</button></div><div id="loginMsg" class="notice hidden"></div></div></section>
 <section id="app" class="hidden">
-<div class="panel"><div class="panel-head"><span>Academic context</span><span id="who"></span></div><div class="panel-body"><div class="grid"><div class="span4"><label>Section</label><select id="sectionSelect"></select></div><div class="span8"><div class="grid"><div class="span4 stat"><span class="muted">Roster</span><b id="statRoster">0</b></div><div class="span4 stat"><span class="muted">Linked</span><b id="statLinked">0</b></div><div class="span4 stat"><span class="muted">Completed</span><b id="statComplete">0</b></div></div></div></div><div class="toolbar"><button id="signOut">Sign out</button><a href="/student/" target="_blank"><button type="button">Open Student Portal ↗</button></a></div></div></div>
+<div class="panel"><div class="panel-head"><span>Academic context</span><span id="who"></span></div><div class="panel-body"><div class="grid"><div class="span4"><label for="semesterFilter">Semester filter</label><select id="semesterFilter"><option value="current">Active Semester</option><option value="all">All Semesters</option></select><label for="sectionSelect" style="margin-top:10px">Section</label><select id="sectionSelect"></select><div id="semesterHint" class="muted" style="font-size:12px;margin-top:5px">Sections are grouped by semester, newest first.</div></div><div class="span8"><div class="grid"><div class="span4 stat"><span class="muted">Roster</span><b id="statRoster">0</b></div><div class="span4 stat"><span class="muted">Linked</span><b id="statLinked">0</b></div><div class="span4 stat"><span class="muted">Completed</span><b id="statComplete">0</b></div></div></div></div><div class="toolbar"><button id="signOut">Sign out</button><a href="/student/" target="_blank"><button type="button">Open Student Portal ↗</button></a></div></div></div>
 <div class="tabs"><button class="active" data-tab="roster">Roster</button><button data-tab="passwords">Password Resets</button><button data-tab="plan">Course Plan</button><button data-tab="assignments">Assignments & Deadlines</button><button data-tab="results">Student Results</button></div>
 <section id="tab-roster" class="panel tabpage"><div class="panel-head"><span>Roster</span><span>Course authorization</span></div><div class="panel-body">
 <div id="rosterMsg" class="notice hidden"></div>
@@ -68,7 +68,60 @@ function sectionLabel(s){return `${s.term.name} · ${s.course.code}-${s.section_
 function selectedSection(){return (boot?.sections||[]).find(s=>s.id===$('sectionSelect').value)}
 function courseUrl(code){return '/'+encodeURIComponent(String(code||'').trim())+'/'}
 function renderCourseMenu(){const host=$('coursesMenuList');if(!host)return;host.innerHTML='';const rows=(boot?.courses||[]).slice().sort((a,b)=>String(a.code||'').localeCompare(String(b.code||'')));if(!rows.length){host.innerHTML='<div class="muted" style="padding:9px 10px">No courses configured.</div>';return}for(const c of rows){const a=document.createElement('a');a.href=courseUrl(c.code);a.target='_blank';a.rel='noopener';a.innerHTML='<strong>'+esc(c.code)+'</strong><div class="muted" style="font-size:12px">'+esc(c.title||'')+'</div>';host.appendChild(a)}}
-async function loadApp(){boot=await api('bootstrap');$('loginPanel').classList.add('hidden');$('app').classList.remove('hidden');$('who').textContent=(boot.profile.full_name||boot.profile.email)+' · '+boot.profile.app_role.toUpperCase();renderCourseMenu();const sel=$('sectionSelect');sel.innerHTML='';for(const s of boot.sections||[]){const o=document.createElement('option');o.value=s.id;o.textContent=sectionLabel(s);sel.appendChild(o)}if(!sel.value&&sel.options.length)sel.selectedIndex=0;await refreshAll()}
+// Preserve instructor selection only on this browser. Never store login credentials.
+function sectionPreferenceKey(){return 'monroe-instructor:selected-section:'+String(boot?.profile?.id||boot?.profile?.email||'unknown')}
+function readPreference(k){try{return localStorage.getItem(k)}catch(_){return null}}
+function savePreference(k,v){try{localStorage.setItem(k,v)}catch(_){}}
+function termName(s){return String(s?.term?.name||'Unassigned semester').trim()}
+function termRank(name){
+  const n=String(name||'').trim();
+  const y=Number((n.match(/\b(20\d{2})\b/)||[])[1])||0;
+  const season=(n.match(/spring|summer|fall|autumn|winter/i)||[])[0]?.toLowerCase()||'';
+  const rank={winter:1,spring:2,summer:3,fall:4,autumn:4}[season]||0;
+  return y*10+rank;
+}
+function activeTermNames(sections){
+  const unique=[...new Set(sections.map(termName))];
+  const today=new Date(),year=today.getFullYear(),month=today.getMonth()+1;
+  // Calendar-based fallback; do not assume an unpublished term is active.
+  const currentSeason=month<=1?'Winter':month<=5?'Spring':month<=8?'Summer':'Fall';
+  const candidates=[`${currentSeason} ${year}`];
+  if(currentSeason==='Winter')candidates.push(`Fall ${year-1}`);
+  const exact=unique.filter(n=>candidates.some(c=>n.toLowerCase().includes(c.toLowerCase())));
+  // If the academic naming differs, use the latest configured term.
+  if(exact.length)return exact;
+  const max=Math.max(0,...unique.map(termRank));
+  return unique.filter(n=>termRank(n)===max);
+}
+function renderSectionOptions(preferredId){
+  const all=boot?.sections||[];
+  const active=activeTermNames(all);
+  const mode=$('semesterFilter').value;
+  const visible=all.filter(s=>mode==='all'||active.includes(termName(s)));
+  const groups=new Map();
+  for(const s of visible){const name=termName(s);if(!groups.has(name))groups.set(name,[]);groups.get(name).push(s)}
+  const sel=$('sectionSelect');sel.replaceChildren();
+  for(const name of [...groups.keys()].sort((a,b)=>termRank(b)-termRank(a)||b.localeCompare(a))){
+    const group=document.createElement('optgroup');group.label=name;
+    for(const s of groups.get(name).sort((a,b)=>String(a.course?.code||'').localeCompare(String(b.course?.code||''))||String(a.section_code||'').localeCompare(String(b.section_code||'')))){
+      const opt=document.createElement('option');opt.value=s.id;opt.textContent=`${s.course?.code||'Course'}-${s.section_code}`;group.appendChild(opt)
+    }
+    sel.appendChild(group)
+  }
+  if(preferredId&&visible.some(s=>s.id===preferredId))sel.value=preferredId;
+  if(!sel.value&&sel.options.length)sel.selectedIndex=0;
+  $('semesterHint').textContent=mode==='all'?'All available semesters (newest first).':'Active semester: '+(active.join(', ')||'none configured');
+}
+async function loadApp(){
+  boot=await api('bootstrap');
+  $('loginPanel').classList.add('hidden');$('app').classList.remove('hidden');
+  $('who').textContent=(boot.profile.full_name||boot.profile.email)+' · '+boot.profile.app_role.toUpperCase();
+  renderCourseMenu();
+  const saved=readPreference(sectionPreferenceKey());
+  $('semesterFilter').value=(saved&&(boot.sections||[]).some(s=>s.id===saved)&&!activeTermNames(boot.sections||[]).includes(termName((boot.sections||[]).find(s=>s.id===saved))))?'all':'current';
+  renderSectionOptions(saved);
+  await refreshAll();
+}
 async function refreshAll(){await Promise.all([loadRoster(),loadPasswordResetRequests(),loadPasswordResets(),loadResults(),loadCoursePlan()])}
 // Roster group classification uses the server-owned is_test_account flag.
 // A professor's admin account is NEVER counted as a current student.
@@ -154,6 +207,6 @@ $('signIn').onclick=async()=>{clearMsg('loginMsg');const {data,error}=await sb.a
 $('signOut').onclick=async()=>{await sb.auth.signOut();location.reload()};
 $('coursesMenuButton').onclick=e=>{e.stopPropagation();const list=$('coursesMenuList');const open=list.classList.toggle('hidden')===false;$('coursesMenuButton').setAttribute('aria-expanded',open?'true':'false')};
 document.addEventListener('click',e=>{if(!e.target.closest('.course-menu')){$('coursesMenuList').classList.add('hidden');$('coursesMenuButton').setAttribute('aria-expanded','false')}});
-$('sectionSelect').onchange=refreshAll;document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.tabpage').forEach(p=>p.classList.add('hidden'));$('tab-'+b.dataset.tab).classList.remove('hidden')});
+$('semesterFilter').onchange=async()=>{const previous=$('sectionSelect').value;renderSectionOptions(previous);if($('sectionSelect').value){savePreference(sectionPreferenceKey(),$('sectionSelect').value);await refreshAll()}};$('sectionSelect').onchange=async()=>{savePreference(sectionPreferenceKey(),$('sectionSelect').value);await refreshAll()};document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.tabpage').forEach(p=>p.classList.add('hidden'));$('tab-'+b.dataset.tab).classList.remove('hidden')});
 </script>
 </body></html>
