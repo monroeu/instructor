@@ -150,7 +150,7 @@ async function loadApp(){
   renderSectionOptions(saved);
   await refreshAll();
 }
-async function refreshAll(){await Promise.all([loadRoster(),loadPasswordResetRequests(),loadPasswordResets(),loadResults(),loadCoursePlan()])}
+async function refreshAll(){updateSectionActions();await Promise.all([loadRoster(),loadPasswordResetRequests(),loadPasswordResets(),loadResults(),loadCoursePlan()]);updateSectionActions()}
 // Roster group classification uses the server-owned is_test_account flag.
 // A professor's admin account is NEVER counted as a current student.
 let rosterGroup='current';
@@ -235,6 +235,6 @@ $('signIn').onclick=async()=>{clearMsg('loginMsg');const {data,error}=await sb.a
 $('signOut').onclick=async()=>{await sb.auth.signOut();location.reload()};
 $('coursesMenuButton').onclick=e=>{e.stopPropagation();const list=$('coursesMenuList');const open=list.classList.toggle('hidden')===false;$('coursesMenuButton').setAttribute('aria-expanded',open?'true':'false')};
 document.addEventListener('click',e=>{if(!e.target.closest('.course-menu')){$('coursesMenuList').classList.add('hidden');$('coursesMenuButton').setAttribute('aria-expanded','false')}});
-$('semesterFilter').onchange=async()=>{const previous=$('sectionSelect').value;renderSectionOptions(previous);if($('sectionSelect').value){savePreference(sectionPreferenceKey(),$('sectionSelect').value);await refreshAll()}};$('archiveSectionButton').onclick=()=>changeSectionArchive(false);$('restoreSectionButton').onclick=()=>changeSectionArchive(true);$('showArchivedSections').onchange=()=>{renderSectionOptions($('sectionSelect').value);if($('sectionSelect').value)refreshAll()};$('sectionSelect').onchange=async()=>{savePreference(sectionPreferenceKey(),$('sectionSelect').value);await refreshAll()};document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.tabpage').forEach(p=>p.classList.add('hidden'));$('tab-'+b.dataset.tab).classList.remove('hidden')});
+$('semesterFilter').onchange=async()=>{const previous=$('sectionSelect').value;renderSectionOptions(previous);if($('sectionSelect').value){savePreference(sectionPreferenceKey(),$('sectionSelect').value);await refreshAll()}};$('archiveSectionButton').onclick=()=>changeSectionArchive(false);$('restoreSectionButton').onclick=()=>changeSectionArchive(true);$('showArchivedSections').onchange=()=>{renderSectionOptions($('sectionSelect').value);if($('sectionSelect').value)refreshAll()};$('sectionSelect').onchange=async()=>{updateSectionActions();savePreference(sectionPreferenceKey(),$('sectionSelect').value);await refreshAll()};document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.tabpage').forEach(p=>p.classList.add('hidden'));$('tab-'+b.dataset.tab).classList.remove('hidden')});
 </script>
 </body></html>
