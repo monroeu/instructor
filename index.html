@@ -28,7 +28,7 @@
 <section class="hero"><div class="muted">MONROE UNIVERSITY · PROFESSOR ACCESS</div><h1>Instructor Control Center</h1><p>Manage rosters, deadlines, individual reactivation, reminders, and participation results.</p></section>
 <section id="loginPanel" class="panel"><div class="panel-head"><span>Instructor sign in</span><span>Supabase Auth</span></div><div class="panel-body"><div class="grid"><div class="span6"><label>Email</label><input id="email" type="email" autocomplete="email"></div><div class="span6"><label>Password</label><input id="password" type="password" autocomplete="current-password"></div></div><div class="toolbar"><button id="signIn" class="primary">Sign in</button></div><div id="loginMsg" class="notice hidden"></div></div></section>
 <section id="app" class="hidden">
-<div class="panel"><div class="panel-head"><span>Academic context</span><span id="who"></span></div><div class="panel-body"><div class="grid"><div class="span4"><label for="semesterFilter">Semester filter</label><select id="semesterFilter"><option value="current">Active Semester</option><option value="all">All Semesters</option></select><label for="sectionSelect" style="margin-top:10px">Section</label><select id="sectionSelect"></select><div id="semesterHint" class="muted" style="font-size:12px;margin-top:5px">Sections are grouped by semester, newest first.</div></div><div class="span8"><div class="grid"><div class="span4 stat"><span class="muted">Roster</span><b id="statRoster">0</b></div><div class="span4 stat"><span class="muted">Linked</span><b id="statLinked">0</b></div><div class="span4 stat"><span class="muted">Completed</span><b id="statComplete">0</b></div></div></div></div><div class="toolbar"><button id="signOut">Sign out</button><a href="/student/" target="_blank"><button type="button">Open Student Portal ↗</button></a></div></div></div>
+<div class="panel"><div class="panel-head"><span>Academic context</span><span id="who"></span></div><div class="panel-body"><div class="grid"><div class="span4"><label for="semesterFilter">Semester filter</label><select id="semesterFilter"><option value="current">Active Semester</option><option value="all">All Semesters</option></select><label for="sectionSelect" style="margin-top:10px">Section</label><select id="sectionSelect"></select><div id="semesterHint" class="muted" style="font-size:12px;margin-top:5px">Sections are grouped by semester, newest first.</div><label style="font-weight:normal;margin-top:9px"><input type="checkbox" id="showArchivedSections" style="width:auto"> Show archived sections</label><div class="toolbar"><button id="archiveSectionButton" class="danger" type="button">Archive selected section</button><button id="restoreSectionButton" type="button" class="hidden">Restore selected section</button></div></div><div class="span8"><div class="grid"><div class="span4 stat"><span class="muted">Roster</span><b id="statRoster">0</b></div><div class="span4 stat"><span class="muted">Linked</span><b id="statLinked">0</b></div><div class="span4 stat"><span class="muted">Completed</span><b id="statComplete">0</b></div></div></div></div><div class="toolbar"><button id="signOut">Sign out</button><a href="/student/" target="_blank"><button type="button">Open Student Portal ↗</button></a></div></div></div>
 <div class="tabs"><button class="active" data-tab="roster">Roster</button><button data-tab="passwords">Password Resets</button><button data-tab="plan">Course Plan</button><button data-tab="assignments">Assignments & Deadlines</button><button data-tab="results">Student Results</button></div>
 <section id="tab-roster" class="panel tabpage"><div class="panel-head"><span>Roster</span><span>Course authorization</span></div><div class="panel-body">
 <div id="rosterMsg" class="notice hidden"></div>
@@ -97,20 +97,48 @@ function renderSectionOptions(preferredId){
   const all=boot?.sections||[];
   const active=activeTermNames(all);
   const mode=$('semesterFilter').value;
-  const visible=all.filter(s=>mode==='all'||active.includes(termName(s)));
+  const visible=all.filter(s=>(($('showArchivedSections').checked)||s.status!=='archived')&&(mode==='all'||active.includes(termName(s))));
   const groups=new Map();
   for(const s of visible){const name=termName(s);if(!groups.has(name))groups.set(name,[]);groups.get(name).push(s)}
   const sel=$('sectionSelect');sel.replaceChildren();
   for(const name of [...groups.keys()].sort((a,b)=>termRank(b)-termRank(a)||b.localeCompare(a))){
     const group=document.createElement('optgroup');group.label=name;
     for(const s of groups.get(name).sort((a,b)=>String(a.course?.code||'').localeCompare(String(b.course?.code||''))||String(a.section_code||'').localeCompare(String(b.section_code||'')))){
-      const opt=document.createElement('option');opt.value=s.id;opt.textContent=`${s.course?.code||'Course'}-${s.section_code}`;group.appendChild(opt)
+      const opt=document.createElement('option');opt.value=s.id;opt.textContent=`${s.course?.code||'Course'}-${s.section_code}${s.status==='archived' ? ' [Archived]' : ''}`;group.appendChild(opt)
     }
     sel.appendChild(group)
   }
   if(preferredId&&visible.some(s=>s.id===preferredId))sel.value=preferredId;
   if(!sel.value&&sel.options.length)sel.selectedIndex=0;
-  $('semesterHint').textContent=mode==='all'?'All available semesters (newest first).':'Active semester: '+(active.join(', ')||'none configured');
+  $('semesterHint').textContent=mode==='all'?'All available semesters (newest first).':'Active semester: '+(active.join(', ')||'none configured');updateSectionActions();
+}
+function updateSectionActions(){
+ const section=selectedSection();const admin=boot?.profile?.app_role==='admin';
+ const archived=section?.status==='archived';
+ $('archiveSectionButton').classList.toggle('hidden',!admin||!section||archived);
+ $('restoreSectionButton').classList.toggle('hidden',!admin||!section||!archived);
+}
+async function changeSectionArchive(restore=false){
+ const section=selectedSection();if(!section||boot?.profile?.app_role!=='admin')return;
+ const code=String(section.section_code||'');
+ const promptMessage=restore
+ ? `Restore ${section.course?.code}-${code}? This will show the section in normal dropdowns again. Type ${code} to confirm:`
+ : `WARNING: Archive ${section.course?.code}-${code}? The section will disappear from the normal dropdown. Student accounts, rosters, assignments and participation data will NOT be deleted. For safety, sections with any roster or enrollment records cannot be archived here. Type ${code} to confirm:`;
+ const answer=prompt(promptMessage);
+ if(answer===null)return;
+ if(answer.trim()!==code){alert('Confirmation did not match the section code. Nothing changed.');return;}
+ const button=$(restore?'restoreSectionButton':'archiveSectionButton');button.disabled=true;
+ try{
+  const response=await api(restore?'section_restore':'section_archive',{section_id:section.id,confirm_section_code:code});
+  const oldId=section.id;
+  boot=await api('bootstrap');
+  if(restore){$('showArchivedSections').checked=true}else{$('showArchivedSections').checked=false}
+  renderSectionOptions(restore?oldId:null);
+  if(!restore&&$('sectionSelect').value===oldId)renderSectionOptions(null);
+  if($('sectionSelect').value)try{localStorage.setItem(sectionPreferenceKey(),$('sectionSelect').value)}catch(_){ }
+  await refreshAll();
+  alert(restore?'Section restored.':`Section archived. ${response.offerings_preserved??0} assignment offerings were preserved. Enable Show archived sections to restore it.`);
+ }catch(e){alert('Section not changed: '+e.message)}finally{button.disabled=false;updateSectionActions()}
 }
 async function loadApp(){
   boot=await api('bootstrap');
@@ -207,6 +235,6 @@ $('signIn').onclick=async()=>{clearMsg('loginMsg');const {data,error}=await sb.a
 $('signOut').onclick=async()=>{await sb.auth.signOut();location.reload()};
 $('coursesMenuButton').onclick=e=>{e.stopPropagation();const list=$('coursesMenuList');const open=list.classList.toggle('hidden')===false;$('coursesMenuButton').setAttribute('aria-expanded',open?'true':'false')};
 document.addEventListener('click',e=>{if(!e.target.closest('.course-menu')){$('coursesMenuList').classList.add('hidden');$('coursesMenuButton').setAttribute('aria-expanded','false')}});
-$('semesterFilter').onchange=async()=>{const previous=$('sectionSelect').value;renderSectionOptions(previous);if($('sectionSelect').value){savePreference(sectionPreferenceKey(),$('sectionSelect').value);await refreshAll()}};$('sectionSelect').onchange=async()=>{savePreference(sectionPreferenceKey(),$('sectionSelect').value);await refreshAll()};document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.tabpage').forEach(p=>p.classList.add('hidden'));$('tab-'+b.dataset.tab).classList.remove('hidden')});
+$('semesterFilter').onchange=async()=>{const previous=$('sectionSelect').value;renderSectionOptions(previous);if($('sectionSelect').value){savePreference(sectionPreferenceKey(),$('sectionSelect').value);await refreshAll()}};$('archiveSectionButton').onclick=()=>changeSectionArchive(false);$('restoreSectionButton').onclick=()=>changeSectionArchive(true);$('showArchivedSections').onchange=()=>{renderSectionOptions($('sectionSelect').value);if($('sectionSelect').value)refreshAll()};$('sectionSelect').onchange=async()=>{savePreference(sectionPreferenceKey(),$('sectionSelect').value);await refreshAll()};document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.tabpage').forEach(p=>p.classList.add('hidden'));$('tab-'+b.dataset.tab).classList.remove('hidden')});
 </script>
 </body></html>
