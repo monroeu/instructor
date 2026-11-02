@@ -1,0 +1,1 @@
+Per-section schedule configuration only. Supabase schedule-management endpoint deployed and database migration applied. Automatic cron execution NOT activated; no emails sent. Upload three files to root of monroeu/instructor.

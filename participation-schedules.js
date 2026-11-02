@@ -1,0 +1,17 @@
+/* Per-course-section participation email schedule administration. */
+(()=>{'use strict';
+const $=id=>document.getElementById(id);
+const names=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const endpoint='https://irnrjzeejalbbqdrbzmj.supabase.co/functions/v1/participation-email-schedules';
+const say=x=>{$('scheduleMessage').textContent=x};
+async function request(action,more={}){
+ const {data:{session}}=await sb.auth.getSession();if(!session)throw Error('Instructor session required');
+ const response=await fetch(endpoint,{method:'POST',headers:{'Authorization':'Bearer '+session.access_token,'Content-Type':'application/json'},body:JSON.stringify({action,section_id:$('scheduleSection').value,...more})});
+ const result=await response.json();if(!response.ok)throw Error(result.error||'Request failed');return result;
+}
+function fillDays(selected=[2,5]){$('scheduleDays').replaceChildren();names.forEach((name,i)=>{const label=document.createElement('label');const inp=document.createElement('input');inp.type='checkbox';inp.dataset.day=i;inp.checked=selected.includes(i);label.append(inp,document.createTextNode(' '+name));$('scheduleDays').append(label)})}
+function populate(){const selected=$('scheduleSection').value;const ss=(boot?.sections||[]).filter(x=>x.status==='active'&&x.term?.is_active!==false);$('scheduleSection').replaceChildren();for(const s of ss){const el=document.createElement('option');el.value=s.id;el.textContent=[s.course?.code,s.section_code,s.term?.name].filter(Boolean).join(' · ');$('scheduleSection').append(el)}if(ss.some(x=>x.id===selected))$('scheduleSection').value=selected;else if(ss.some(x=>x.id===$('sectionSelect')?.value))$('scheduleSection').value=$('sectionSelect').value;}
+async function load(){populate();if(!$('scheduleSection').value)throw Error('No active section');const r=await request('get');fillDays(r.schedule.days_of_week||[2,5]);$('scheduleTime').value=String(r.schedule.local_time||'18:00').slice(0,5);$('scheduleEnabled').checked=!!r.schedule.enabled;say('Saved configuration loaded. Scheduling engine must be enabled separately before automatic delivery begins.')}
+async function save(){const days=[...$('scheduleDays').querySelectorAll('input:checked')].map(x=>Number(x.dataset.day));if(!days.length)throw Error('Choose at least one day');const enabled=$('scheduleEnabled').checked;if(enabled&&!confirm('Save enabled schedule for this section? Sending will only occur once the scheduler has been commissioned.'))return;const r=await request('save',{days_of_week:days,local_time:$('scheduleTime').value,enabled});say('Schedule saved for this section: '+r.schedule.days_of_week.map(i=>names[i]).join(', ')+' at '+r.schedule.local_time+' Eastern. Automatic dispatch is not currently activated.')}
+document.addEventListener('DOMContentLoaded',()=>{if(!$('scheduleSection'))return;fillDays();$('scheduleLoad').onclick=()=>load().catch(e=>say('Error: '+e.message));$('scheduleSave').onclick=()=>save().catch(e=>say('Error: '+e.message));$('scheduleSection').onchange=()=>load().catch(e=>say('Error: '+e.message));const tab=document.querySelector('[data-tab="mail"]')||document.querySelector('[data-tab="participation-emails"]');if(tab)tab.addEventListener('click',()=>setTimeout(()=>load().catch(e=>say(e.message)),150));setTimeout(()=>{if(typeof boot!=='undefined'&&boot?.sections?.length)load().catch(()=>{})},2000)})
+})();
