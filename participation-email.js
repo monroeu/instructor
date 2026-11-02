@@ -13,7 +13,7 @@
      if(rr.is_test_account||rr.is_professor_test||norm(rr.expected_full_name).includes('professor test'))return null;
      const labs=(r.offerings||[]).filter(o=>o.published!==false).map(o=>{
        const ss=sessions.get(`${e.id}::${o.id}`),c=Array.isArray(ss?.completion)?ss.completion[0]:ss?.completion;
-       const pct=ss?Number(c?.completion_percentage??0):0, completed=!!ss&&(pct>=100||c?.status==='complete'||c?.status==='overridden');
+       const pct=ss?Number(c?.completion_percentage??0):0, completed=!!ss&&(c?.status==='complete'||c?.status==='overridden');
        return {title:o.assignment?.title||'Participation lab',completion:pct,score:c?.participation_grade??null,gradeKind:completed?'recorded':'provisional',status:completed?'Completed':ss?'In progress':'Not started',time:null};
      });
      return {id:e.id,name:rr.expected_full_name||e.profile?.full_name||'Student',email,section:'',labs};
@@ -62,5 +62,20 @@
     $('mailMessage').textContent=`Delivery requests completed: ${sent} accepted by email provider; ${skipped} skipped. ${errors.slice(0,3).join('; ')} Review Supabase instructor action logs for individual outcomes.`;
    }finally{$('mailSend').disabled=false}
  }
- document.addEventListener('DOMContentLoaded' ,()=>{if(!$('mailPreview'))return;$('mailPreview').onclick=()=>load().catch(e=>{$('mailMessage').textContent='Preview failed: '+e.message});$('mailSend').onclick=()=>sendSelected().catch(e=>{$('mailMessage').textContent='Sending stopped: '+e.message});$('mailToggleAll').onchange=e=>$('mailRecipients').querySelectorAll('[data-mail-index]').forEach(x=>x.checked=e.target.checked)});
+
+ async function professorTest(action){
+  const msg=$('mailTestMessage');msg.textContent='Contacting protected test endpoint...';
+  const {data:{session:authSession}}=await sb.auth.getSession();if(!authSession)throw Error('Instructor sign-in required');
+  if(action==='test_send'){
+   if(!confirm('Send ONE real test report to fkassoh@monroeu.edu? No students will receive it.'))return;
+   if(prompt('Type SEND_TEST to authorize only this test email')!=='SEND_TEST')return;
+  }
+  const response=await fetch('https://irnrjzeejalbbqdrbzmj.supabase.co/functions/v1/participation-bulk-email',{
+   method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+authSession.access_token},
+   body:JSON.stringify({action,confirm:action==='test_send'?'SEND_TEST':null})
+  });const result=await response.json();if(!response.ok)throw Error(result.error||'Test request failed');
+  if(action==='test_preview'){$('mailEmailPreview').innerHTML=result.html;msg.textContent=`Professor-only test preview ready. Destination: ${result.to}. ${result.records} saved sessions.`;}
+  else msg.textContent=`Test email accepted by provider for ${result.to}. Provider message ID: ${result.provider_message_id||'unavailable'}. Check inbox and audit log.`;
+ }
+ document.addEventListener('DOMContentLoaded' ,()=>{if(!$('mailPreview'))return;$('mailTestPreview').onclick=()=>professorTest('test_preview').catch(e=>{$('mailTestMessage').textContent='Test preview failed: '+e.message});$('mailTestSend').onclick=()=>professorTest('test_send').catch(e=>{$('mailTestMessage').textContent='Test delivery failed: '+e.message});$('mailPreview').onclick=()=>load().catch(e=>{$('mailMessage').textContent='Preview failed: '+e.message});$('mailSend').onclick=()=>sendSelected().catch(e=>{$('mailMessage').textContent='Sending stopped: '+e.message});$('mailToggleAll').onchange=e=>$('mailRecipients').querySelectorAll('[data-mail-index]').forEach(x=>x.checked=e.target.checked)});
 })();
