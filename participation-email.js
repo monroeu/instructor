@@ -1,4 +1,4 @@
-/* Instructor participation email module: read-only until server send endpoint is deployed and verified. */
+/* Personalized participation reporting and protected instructor-approved sending. */
 (() => {
  'use strict';
  let recipients=[]; const $=id=>document.getElementById(id);
@@ -14,7 +14,7 @@
      const labs=(r.offerings||[]).filter(o=>o.published!==false).map(o=>{
        const ss=sessions.get(`${e.id}::${o.id}`),c=Array.isArray(ss?.completion)?ss.completion[0]:ss?.completion;
        const pct=ss?Number(c?.completion_percentage??0):0, completed=!!ss&&(pct>=100||c?.status==='complete'||c?.status==='overridden');
-       return {title:o.assignment?.title||'Participation lab',completion:pct,score:c?.participation_grade??c?.score_percentage??null,gradeKind:completed?'recorded':'provisional',status:completed?'Completed':ss?'In progress':'Not started',time:null};
+       return {title:o.assignment?.title||'Participation lab',completion:pct,score:c?.participation_grade??null,gradeKind:completed?'recorded':'provisional',status:completed?'Completed':ss?'In progress':'Not started',time:null};
      });
      return {id:e.id,name:rr.expected_full_name||e.profile?.full_name||'Student',email,section:'',labs};
    }).filter(Boolean);
@@ -34,7 +34,7 @@
    $('mailStats').textContent=`${recipients.length} eligible student-section reports. No emails sent.`;
    $('mailRecipients').replaceChildren();for(let i=0;i<recipients.length;i++){const r=recipients[i],tr=document.createElement('tr');tr.innerHTML=`<td><input type="checkbox" data-mail-index="${i}" checked></td><td>${html(r.name)}<div class="muted">${html(r.email)}</div></td><td>${html(r.section)}</td><td>${r.labs.filter(l=>l.status==='Completed').length}/${r.labs.length}</td><td>${r.labs.filter(l=>l.status!=='Completed').length}</td><td><button type="button" data-preview-index="${i}">Preview</button></td>`;$('mailRecipients').append(tr)}
    $('mailRecipients').querySelectorAll('[data-preview-index]').forEach(b=>b.onclick=()=>{$('mailEmailPreview').innerHTML=emailBody(recipients[Number(b.dataset.previewIndex)])});
-   if(recipients.length)$('mailEmailPreview').innerHTML=emailBody(recipients[0]);$('mailMessage').textContent='Preview generated from roster and recorded sessions. Delivery is intentionally disabled until protected server sending and audit logging are installed.';
+   if(recipients.length)$('mailEmailPreview').innerHTML=emailBody(recipients[0]);$('mailMessage').textContent='Preview ready. Sending uses the protected Supabase endpoint and requires explicit confirmation. No email has been sent.';
  }
  async function sendSelected(){
    const selected=[...$('mailRecipients').querySelectorAll('[data-mail-index]:checked')].map(x=>recipients[Number(x.dataset.mailIndex)]);
