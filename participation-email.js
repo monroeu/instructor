@@ -27,13 +27,40 @@
  async function load(){if(!session)throw Error('Please sign in.');const scope=$('mailScope').value, sections=(boot?.sections||[]).filter(x=>x.status==='active'&&x.term?.is_active!==false);
    const chosen=scope==='current'?sections.filter(s=>s.id===$('sectionSelect').value):sections;
    if(!chosen.length)throw Error('No active section selected.');
-   const data=await Promise.all(chosen.map(async s=>{const [r,ro]=await Promise.all([api('results',{section_id:s.id}),api('roster_list',{section_id:s.id})]);r.roster_rows=ro.rows||[];return studentRows(r).map(x=>({...x,section:`${s.course?.code||'Course'} · ${s.section_code||''} · ${s.term?.name||''}`}));}));
+   const data=await Promise.all(chosen.map(async s=>{const [r,ro]=await Promise.all([api('results',{section_id:s.id}),api('roster_list',{section_id:s.id})]);r.roster_rows=ro.rows||[];return studentRows(r).map(x=>({...x,section:`${s.course?.code||'Course'} · ${s.section_code||''} · ${s.term?.name||''}`,section_id:s.id}));}));
    const uniq=new Map();for(const group of data)for(const r of group)uniq.set(`${r.id}:${r.section}`,r);
    recipients=[...uniq.values()].filter(r=>$('mailStatus').value==='all'||($('mailStatus').value==='complete'?r.labs.length>0&&r.labs.every(l=>l.status==='Completed'):r.labs.some(l=>l.status!=='Completed')));
+   $('mailSend').disabled=!recipients.length;
    $('mailStats').textContent=`${recipients.length} eligible student-section reports. No emails sent.`;
    $('mailRecipients').replaceChildren();for(let i=0;i<recipients.length;i++){const r=recipients[i],tr=document.createElement('tr');tr.innerHTML=`<td><input type="checkbox" data-mail-index="${i}" checked></td><td>${html(r.name)}<div class="muted">${html(r.email)}</div></td><td>${html(r.section)}</td><td>${r.labs.filter(l=>l.status==='Completed').length}/${r.labs.length}</td><td>${r.labs.filter(l=>l.status!=='Completed').length}</td><td><button type="button" data-preview-index="${i}">Preview</button></td>`;$('mailRecipients').append(tr)}
    $('mailRecipients').querySelectorAll('[data-preview-index]').forEach(b=>b.onclick=()=>{$('mailEmailPreview').innerHTML=emailBody(recipients[Number(b.dataset.previewIndex)])});
    if(recipients.length)$('mailEmailPreview').innerHTML=emailBody(recipients[0]);$('mailMessage').textContent='Preview generated from roster and recorded sessions. Delivery is intentionally disabled until protected server sending and audit logging are installed.';
  }
- document.addEventListener('DOMContentLoaded',()=>{if(!$('mailPreview'))return;$('mailPreview').onclick=()=>load().catch(e=>{$('mailMessage').textContent='Preview failed: '+e.message});$('mailToggleAll').onchange=e=>$('mailRecipients').querySelectorAll('[data-mail-index]').forEach(x=>x.checked=e.target.checked)});
+ async function sendSelected(){
+   const selected=[...$('mailRecipients').querySelectorAll('[data-mail-index]:checked')].map(x=>recipients[Number(x.dataset.mailIndex)]);
+   if(!selected.length)throw Error('Select at least one student.');
+   const sections=new Map();for(const x of selected){if(!sections.has(x.section_id))sections.set(x.section_id,[]);sections.get(x.section_id).push(x)}
+   if(!confirm(`Send an individualized participation report to ${selected.length} selected student(s)? This will send real email.`))return;
+   if(prompt('To confirm real student email delivery, type SEND')!=='SEND')return;
+   $('mailSend').disabled=true; $('mailMessage').textContent='Sending selected reports in protected batches...';
+   const batchKey='progress'+Date.now().toString(36)+Math.random().toString(36).slice(2,10);
+   let sent=0,skipped=0,errors=[];
+   try{
+    const {data:{session:authSession}}=await sb.auth.getSession();if(!authSession)throw Error('Instructor sign-in expired.');
+    for(const [sectionId,students] of sections){
+      for(let j=0;j<students.length;j+=10){
+       const group=students.slice(j,j+10);
+       const response=await fetch('https://irnrjzeejalbbqdrbzmj.supabase.co/functions/v1/participation-bulk-email',{
+        method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+authSession.access_token},
+        body:JSON.stringify({action:'send',section_id:sectionId,enrollment_ids:group.map(x=>x.id),batch_key:batchKey})
+       });const result=await response.json();if(!response.ok)throw Error(result.error||`Server returned ${response.status}`);
+       sent+=(result.sent||[]).length;skipped+=(result.skipped||[]).length;
+       errors.push(...(result.skipped||[]).map(x=>x.reason));
+       $('mailMessage').textContent=`Sent ${sent} of ${selected.length} selected reports; ${skipped} skipped.`;
+      }
+    }
+    $('mailMessage').textContent=`Delivery requests completed: ${sent} accepted by email provider; ${skipped} skipped. ${errors.slice(0,3).join('; ')} Review Supabase instructor action logs for individual outcomes.`;
+   }finally{$('mailSend').disabled=false}
+ }
+ document.addEventListener('DOMContentLoaded' ,()=>{if(!$('mailPreview'))return;$('mailPreview').onclick=()=>load().catch(e=>{$('mailMessage').textContent='Preview failed: '+e.message});$('mailSend').onclick=()=>sendSelected().catch(e=>{$('mailMessage').textContent='Sending stopped: '+e.message});$('mailToggleAll').onchange=e=>$('mailRecipients').querySelectorAll('[data-mail-index]').forEach(x=>x.checked=e.target.checked)});
 })();
