@@ -66,16 +66,19 @@
  async function professorTest(action){
   const msg=$('mailTestMessage');msg.textContent='Contacting protected test endpoint...';
   const {data:{session:authSession}}=await sb.auth.getSession();if(!authSession)throw Error('Instructor sign-in required');
-  if(action==='test_send'){
-   if(!confirm('Send ONE real test report to fkassoh@monroeu.edu? No students will receive it.'))return;
-   if(prompt('Type SEND_TEST to authorize only this test email')!=='SEND_TEST')return;
+  if(action==='test_send'||action==='test_bulk_send'){
+   const bulk=action==='test_bulk_send';
+   if(!confirm(bulk?'Send TWO real test messages ONLY to fkassoh@monroeu.edu? No students will receive them.':'Send ONE real test report to fkassoh@monroeu.edu? No students will receive it.'))return;
+   const phrase=bulk?'SEND_TWO_TESTS':'SEND_TEST';
+   if(prompt('Type '+phrase+' to authorize this controlled test')!==phrase)return;
   }
   const response=await fetch('https://irnrjzeejalbbqdrbzmj.supabase.co/functions/v1/participation-bulk-email',{
    method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+authSession.access_token},
-   body:JSON.stringify({action,confirm:action==='test_send'?'SEND_TEST':null})
+   body:JSON.stringify({action,confirm:action==='test_bulk_send'?'SEND_TWO_TESTS':action==='test_send'?'SEND_TEST':null})
   });const result=await response.json();if(!response.ok)throw Error(result.error||'Test request failed');
   if(action==='test_preview'){$('mailEmailPreview').innerHTML=result.html;msg.textContent=`Professor-only test preview ready. Destination: ${result.to}. ${result.records} saved sessions.`;}
+  else if(action==='test_bulk_send'){const results=result.deliveries||[];msg.textContent=`Controlled bulk test: ${results.filter(x=>x.accepted).length}/${results.length} accepted by Resend. Recipient: ${result.destination}. Student recipients: ${result.student_recipients}. Check inbox and audit log.`;}
   else msg.textContent=`Test email accepted by provider for ${result.to}. Provider message ID: ${result.provider_message_id||'unavailable'}. Check inbox and audit log.`;
  }
- document.addEventListener('DOMContentLoaded' ,()=>{if(!$('mailPreview'))return;$('mailTestPreview').onclick=()=>professorTest('test_preview').catch(e=>{$('mailTestMessage').textContent='Test preview failed: '+e.message});$('mailTestSend').onclick=()=>professorTest('test_send').catch(e=>{$('mailTestMessage').textContent='Test delivery failed: '+e.message});$('mailPreview').onclick=()=>load().catch(e=>{$('mailMessage').textContent='Preview failed: '+e.message});$('mailSend').onclick=()=>sendSelected().catch(e=>{$('mailMessage').textContent='Sending stopped: '+e.message});$('mailToggleAll').onchange=e=>$('mailRecipients').querySelectorAll('[data-mail-index]').forEach(x=>x.checked=e.target.checked)});
+ document.addEventListener('DOMContentLoaded' ,()=>{if(!$('mailPreview'))return;$('mailTestPreview').onclick=()=>professorTest('test_preview').catch(e=>{$('mailTestMessage').textContent='Test preview failed: '+e.message});$('mailTestSend').onclick=()=>professorTest('test_send').catch(e=>{$('mailTestMessage').textContent='Test delivery failed: '+e.message});$('mailBulkTest').onclick=()=>professorTest('test_bulk_send').catch(e=>{$('mailTestMessage').textContent='Controlled bulk test failed: '+e.message});$('mailPreview').onclick=()=>load().catch(e=>{$('mailMessage').textContent='Preview failed: '+e.message});$('mailSend').onclick=()=>sendSelected().catch(e=>{$('mailMessage').textContent='Sending stopped: '+e.message});$('mailToggleAll').onchange=e=>$('mailRecipients').querySelectorAll('[data-mail-index]').forEach(x=>x.checked=e.target.checked)});
 })();
