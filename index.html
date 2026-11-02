@@ -19,6 +19,18 @@
 .roster-switch button:focus-visible{outline:3px solid var(--teal);outline-offset:2px}
 .roster-context{font-size:13px;margin:8px 0 12px}
 @media(max-width:700px){.roster-summary{grid-template-columns:1fr}.roster-switch button{flex:1 1 100%}}
+
+.roster-tools{border:1px solid var(--rule);padding:15px;margin:16px 0;background:#f7faf8;border-radius:8px}
+.roster-tools .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.roster-tools button{min-height:42px}
+.roster-help{font-size:13px;line-height:1.55;color:#52645c}
+.roster-preview{max-height:320px;overflow:auto;margin-top:12px}
+.roster-preview table{min-width:690px;width:100%;border-collapse:collapse}
+.roster-preview th,.roster-preview td{padding:7px;border-bottom:1px solid #ddd;text-align:left}
+.roster-preview .problem{color:#9c3325;font-weight:700}
+.roster-preview .existing{color:#925a04;font-weight:700}
+.roster-tools input[type=file]{max-width:100%;width:auto}
+@media(max-width:650px){.roster-tools .toolbar{display:grid;grid-template-columns:1fr}.roster-tools button{width:100%}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
 </head>
@@ -43,6 +55,12 @@
   <button type="button" data-roster-group="historical" aria-pressed="false">Historical / Dropped</button>
 </div>
 <p id="rosterContext" class="muted roster-context" aria-live="polite">Showing current official students only. Test and historical entries remain available in their own views.</p>
+<div class="roster-tools" aria-label="Manage roster">
+  <h3 style="margin:0 0 8px">Manage students in the selected section</h3>
+  <p class="roster-help">Use <b>Add student</b> for one record or <b>Import CSV</b> for a class roster. Review the preview before importing. Matching email addresses in this section are updated, not duplicated. Existing participation history is preserved.</p>
+  <div class="toolbar"><button class="primary" type="button" id="rosterAddStudent">+ Add student</button><button type="button" id="rosterCsvTemplate">Download CSV template</button><label for="rosterCsvFile" style="font-weight:700">Import CSV <input type="file" id="rosterCsvFile" accept=".csv,text/csv"></label></div>
+  <div id="rosterImportPanel" class="hidden" style="margin-top:12px"><div id="rosterImportSummary" class="notice" aria-live="polite"></div><div class="roster-preview" id="rosterImportPreview"></div><div class="toolbar"><button type="button" class="primary" id="rosterImportConfirm" disabled>Confirm CSV import</button><button type="button" id="rosterImportCancel">Cancel import</button></div></div>
+</div>
 <div class="scroll"><table><thead><tr><th>Name</th><th>ID</th><th>Email</th><th>Mobile / SMS</th><th>Roster</th><th>Account</th><th>Enrollment</th></tr></thead><tbody id="rosterBody"></tbody></table></div>
 </div></section>
 <section id="tab-passwords" class="panel tabpage hidden"><div class="panel-head"><span>Password resets</span><span>Student requests & instructor-issued temporary passwords</span></div><div class="panel-body"><div id="passwordMsg" class="notice hidden"></div><h3>Pending Password Reset Requests</h3><p class="muted">Students submit these requests from the Student Portal. Email is attempted to kassohf@gmail.com and SMS is attempted to (845) 920-6733. The request remains here even if either notification fails.</p><div class="scroll"><table><thead><tr><th>Student</th><th>ID</th><th>Course(s)</th><th>Requested</th><th>Email</th><th>SMS</th><th>Action</th></tr></thead><tbody id="pendingPasswordRequestsBody"></tbody></table></div><h3 style="margin-top:24px">All Registered Students</h3><p class="muted">You may also issue a temporary password directly to any registered student. The password is shown once and must be given to the student through a trusted channel.</p><div class="scroll"><table><thead><tr><th>Student</th><th>ID</th><th>Account</th><th>Reset state</th><th>Last reset</th><th>Action</th></tr></thead><tbody id="passwordBody"></tbody></table></div></div></section>
@@ -215,6 +233,81 @@ document.querySelectorAll('[data-roster-group]').forEach(btn=>btn.addEventListen
   rosterGroup=btn.dataset.rosterGroup;renderRoster();
 }));
 function fmt(v){return v?new Date(v).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}):'—'}
+
+// Roster editing uses existing instructor-api actions roster_upsert and roster_bulk.
+// No upload is sent merely by selecting a CSV. Student credentials are never imported.
+let pendingRosterImport=null;
+function rosterCurrentSection(){const sid=$('sectionSelect').value;if(!sid)throw Error('Select a course section first.');return sid}
+function rosterCsvEscape(v){const t=String(v??'');return /[",\r\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t}
+$('rosterCsvTemplate').onclick=()=>{
+ const csv='expected_full_name,institutional_id,email,roster_status\r\n'+
+  ['Example Student','0123456','example.student@monroeu.edu','active'].map(rosterCsvEscape).join(',')+'\r\n';
+ const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='monroe_roster_template.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)
+};
+$('rosterAddStudent').onclick=()=>{
+ try{rosterCurrentSection()}catch(e){return msg('rosterMsg',e.message,'error')}
+ openDialog('Add or update student',`<p class="muted">Adds a student to the selected course section. If the email already exists in this section, that roster entry is updated.</p><label>Full name<input id="dlgRosterName" required maxlength="160" autocomplete="off"></label><label>Student ID<input id="dlgRosterID" maxlength="40" autocomplete="off"></label><label>Email<input id="dlgRosterEmail" type="email" required maxlength="200" autocomplete="off"></label><label>Status<select id="dlgRosterStatus"><option value="active">Active</option><option value="invited">Invited</option><option value="dropped">Dropped</option><option value="withdrawn">Withdrawn</option></select></label><label><input id="dlgRosterTest" type="checkbox" style="width:auto"> Professor test account</label>`,async()=>{
+  const expected_full_name=$('dlgRosterName').value.trim(),institutional_id=$('dlgRosterID').value.trim(),email=$('dlgRosterEmail').value.trim().toLowerCase(),roster_status=$('dlgRosterStatus').value,is_test_account=$('dlgRosterTest').checked;
+  if(!expected_full_name)throw Error('Full name is required.');if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('A valid email address is required.');
+  const dup=rosterCache.find(x=>String(x.email).toLowerCase()===email);
+  if(dup&&!confirm('This email already exists in the selected section. Update that roster entry?'))return {keepOpen:true};
+  await api('roster_upsert',{section_id:rosterCurrentSection(),expected_full_name,institutional_id,email,roster_status,is_test_account});await loadRoster();msg('rosterMsg',(dup?'Updated':'Added')+' student: '+expected_full_name,'ok');
+ });
+};
+function parseRosterCsv(source){
+ const out=[];let row=[],cell='',quoted=false,fieldStarted=false;
+ source=String(source).replace(/^\uFEFF/,'');
+ for(let i=0;i<source.length;i++){
+  const c=source[i];if(quoted){if(c==='"'&&source[i+1]==='"'){cell+='"';i++}else if(c==='"'){quoted=false}else cell+=c}
+  else if(c==='"'&&!fieldStarted){quoted=true;fieldStarted=true}
+  else if(c===','){row.push(cell);row.length;cell='';fieldStarted=false}
+  else if(c==='\r'||c==='\n'){if(c==='\r'&&source[i+1]==='\n')i++;row.push(cell);if(row.some(x=>x.trim()))out.push(row);row=[];cell='';fieldStarted=false}
+  else{cell+=c;fieldStarted=true}
+ }
+ if(quoted)throw Error('CSV has an unclosed quotation mark.');row.push(cell);if(row.some(x=>x.trim()))out.push(row);
+ return out;
+}
+function rosterHeaderKey(v){return String(v||'').toLowerCase().trim().replace(/[\s-]+/g,'_').replace(/[^a-z_]/g,'')}
+function csvToRoster(text){
+ const rows=parseRosterCsv(text);if(rows.length<2)throw Error('The CSV must contain a header and at least one student.');
+ const names=rows[0].map(rosterHeaderKey),lookup={expected_full_name:['expected_full_name','full_name','student_name','name'],institutional_id:['institutional_id','student_id','id'],email:['email','school_email','student_email'],roster_status:['roster_status','status']};
+ const cols={};for(const [key,aliases] of Object.entries(lookup))cols[key]=names.findIndex(n=>aliases.includes(n));
+ if(cols.expected_full_name<0||cols.email<0)throw Error('CSV needs a name and email column. Download the template for exact headers.');
+ const seen=new Set(),existing=new Set(rosterCache.map(x=>String(x.email||'').toLowerCase()));
+ return rows.slice(1).map((r,i)=>{
+  const get=k=>cols[k]>=0?String(r[cols[k]]||'').trim():'';
+  const x={expected_full_name:get('expected_full_name'),institutional_id:get('institutional_id'),email:get('email').toLowerCase(),roster_status:get('roster_status').toLowerCase()||'active'};
+  const issues=[];if(!x.expected_full_name)issues.push('Name missing');if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x.email))issues.push('Invalid email');if(!['invited','active','dropped','withdrawn'].includes(x.roster_status))issues.push('Invalid status');
+  if(seen.has(x.email))issues.push('Duplicate email within CSV');seen.add(x.email);
+  return {line:i+2,row:x,issues,existing:existing.has(x.email)};
+ });
+}
+function clearRosterImport(){pendingRosterImport=null;$('rosterImportPanel').classList.add('hidden');$('rosterImportConfirm').disabled=true;$('rosterCsvFile').value='';$('rosterImportPreview').replaceChildren()}
+$('rosterImportCancel').onclick=clearRosterImport;
+$('rosterCsvFile').onchange=async e=>{
+ try{
+  rosterCurrentSection();const f=e.target.files?.[0];if(!f)return;if(f.size>2*1024*1024)throw Error('CSV exceeds 2 MB. Divide it into smaller files.');
+  const entries=csvToRoster(await f.text());if(entries.length>500)throw Error('Limit 500 students per import. Split larger files.');
+  pendingRosterImport={sectionId:rosterCurrentSection(),entries};$('rosterImportPanel').classList.remove('hidden');
+  const invalid=entries.filter(x=>x.issues.length),updates=entries.filter(x=>x.existing&&!x.issues.length),adds=entries.filter(x=>!x.existing&&!x.issues.length);
+  $('rosterImportSummary').textContent=`${entries.length} rows: ${adds.length} new, ${updates.length} existing to update, ${invalid.length} invalid. Import is blocked until all errors are corrected.`;
+  $('rosterImportPreview').innerHTML='<table><thead><tr><th>CSV row</th><th>Name</th><th>Student ID</th><th>Email</th><th>Status</th><th>Action / issue</th></tr></thead><tbody>'+entries.slice(0,100).map(x=>`<tr><td>${x.line}</td><td>${esc(x.row.expected_full_name)}</td><td>${esc(x.row.institutional_id)}</td><td>${esc(x.row.email)}</td><td>${esc(x.row.roster_status)}</td><td class="${x.issues.length?'problem':x.existing?'existing':''}">${esc(x.issues.join('; ')||(x.existing?'Update existing':'Add new'))}</td></tr>`).join('')+'</tbody></table>'+(entries.length>100?'<p>Showing first 100 rows; all rows validated.</p>':'');
+  $('rosterImportConfirm').disabled=!!invalid.length||!entries.length;
+ }catch(ex){clearRosterImport();msg('rosterMsg','CSV preview failed: '+ex.message,'error')}
+};
+$('rosterImportConfirm').onclick=async()=>{
+ if(!pendingRosterImport)return;
+ const {sectionId,entries}=pendingRosterImport;if(sectionId!==rosterCurrentSection())return msg('rosterMsg','The selected section changed. Choose the CSV again.','error');
+ if(entries.some(x=>x.issues.length))return;
+ if(!confirm(`Import ${entries.length} roster entries into ${$('sectionSelect').selectedOptions[0]?.textContent}? Existing email matches will be updated. This will not delete other students. Continue?`))return;
+ const btn=$('rosterImportConfirm');btn.disabled=true;
+ try{
+  // Small batches reduce failed requests. Stop immediately if a batch fails.
+  let accepted=0;for(let i=0;i<entries.length;i+=50){const chunk=entries.slice(i,i+50);const result=await api('roster_bulk',{section_id:sectionId,rows:chunk.map(x=>x.row)});accepted+=Number(result.count)||0;$('rosterImportSummary').textContent=`Imported ${accepted} of ${entries.length} entries…`}
+  clearRosterImport();await loadRoster();msg('rosterMsg',`CSV import completed: ${accepted} roster entries processed. Review the section roster.`,accepted===entries.length?'ok':'error');
+ }catch(ex){msg('rosterMsg',`Import interrupted: ${ex.message}. Some earlier batches may have been saved; refresh the roster before retrying.`,'error');await loadRoster();btn.disabled=false}
+};
+
 async function loadPasswordResetRequests(){const sid=$('sectionSelect').value;if(!sid)return;try{const r=await api('password_reset_requests_list',{section_id:sid}),tb=$('pendingPasswordRequestsBody');tb.innerHTML='';for(const x of r.rows||[]){const rosterRows=x.roster_rows||[];const courses=[...new Set(rosterRows.map(rr=>rr.section?.course?.code).filter(Boolean))];const rr=rosterRows.find(v=>v.section_id===sid)||rosterRows[0]||null;const emailBadge=x.email_status==='sent'?'<span class="badge ok">Sent</span>':`<span class="badge warn">${esc(x.email_status||'unknown')}</span>`;const smsBadge=x.sms_status==='sent'?'<span class="badge ok">Sent</span>':`<span class="badge warn">${esc(x.sms_status||'unknown')}</span>`;const tr=document.createElement('tr');tr.innerHTML=`<td>${esc(x.student_name||'Student')}</td><td>${esc(x.institutional_id||'—')}</td><td>${esc(courses.join(', ')||'—')}</td><td>${esc(fmt(x.requested_at))}</td><td>${emailBadge}</td><td>${smsBadge}</td><td>${rr?`<button class="accent" data-request-reset="${x.id}" data-roster-id="${rr.id}">Issue Temporary Password</button>`:'—'}</td>`;tb.appendChild(tr)}if(!tb.children.length)tb.innerHTML='<tr><td colspan="7" class="muted">No pending password reset requests.</td></tr>';tb.querySelectorAll('[data-request-reset]').forEach(b=>{const req=(r.rows||[]).find(x=>x.id===b.dataset.requestReset);const rr=(req?.roster_rows||[]).find(v=>v.id===b.dataset.rosterId);b.onclick=()=>openPasswordResetDialog(rr)});clearMsg('passwordMsg')}catch(e){msg('passwordMsg',e.message,'error')}}
 async function loadPasswordResets(){const sid=$('sectionSelect').value;if(!sid)return;try{const r=await api('password_reset_list',{section_id:sid}),tb=$('passwordBody');tb.innerHTML='';for(const x of r.rows||[]){const state=x.reset_state||null;const stateHtml=!x.linked_user_id?'<span class="badge warn">No account</span>':state?.must_change_password?'<span class="badge warn">Must change password</span>':'<span class="badge ok">Normal</span>';const tr=document.createElement('tr');tr.innerHTML=`<td>${esc(x.expected_full_name||x.email||'Student')}</td><td>${esc(x.institutional_id||'—')}</td><td>${x.linked_user_id?'<span class="badge ok">Registered</span>':'<span class="badge warn">Not registered</span>'}</td><td>${stateHtml}${state?.expires_at?`<div class="reset-note">Temporary password expires ${esc(fmt(state.expires_at))}</div>`:''}</td><td>${state?.issued_at?esc(fmt(state.issued_at)):'—'}</td><td>${x.linked_user_id?`<button class="accent" data-password-reset="${x.id}">Issue Temporary Password</button>`:'—'}</td>`;tb.appendChild(tr)}if(!tb.children.length){tb.innerHTML='<tr><td colspan="6" class="muted">No roster records found for this section.</td></tr>'}tb.querySelectorAll('[data-password-reset]').forEach(b=>{const row=(r.rows||[]).find(x=>x.id===b.dataset.passwordReset);b.onclick=()=>openPasswordResetDialog(row)});clearMsg('passwordMsg')}catch(e){msg('passwordMsg',e.message,'error')}}
 function openPasswordResetDialog(row){if(!row?.linked_user_id)return msg('passwordMsg','This student does not yet have a registered account.','error');const name=row.expected_full_name||row.email||'Student';openDialog('Reset password — '+name,`<p>This will replace the student's current password immediately.</p><label>Reason</label><textarea id="dlgResetReason" rows="3" placeholder="Student requested password reset">Student requested password reset</textarea><p class="muted">A temporary password will be generated by the server and displayed once. Give it directly to the student. No email is sent.</p>`,async()=>{const reason=$('dlgResetReason').value.trim();if(reason.length<5)throw new Error('Enter a short reset reason.');const r=await api('password_reset_issue',{section_id:$('sectionSelect').value,roster_id:row.id,reason});$('dialogTitle').textContent='Temporary password — '+name;$('dialogBody').innerHTML=`<div class="notice ok">Password reset completed. No email was sent.</div><div class="password-box"><div class="muted">Temporary password</div><div id="issuedTemporaryPassword" class="password-value">${esc(r.temporary_password)}</div></div><p><b>Expires:</b> ${esc(fmt(r.expires_at))}</p><p>The student should sign in with the normal Student ID and this temporary password, then create a new password immediately.</p><p class="muted">This password is intentionally not stored in readable form in your application database. Copy it before closing this window.</p>`;$('dialogSave').textContent='Copy password';$('dialogCancel').textContent='Close';dialogHandler=async()=>{try{await navigator.clipboard.writeText(r.temporary_password);msg('dialogMsg','Temporary password copied to clipboard.','ok')}catch(_){msg('dialogMsg','Select and copy the temporary password shown above.','error')}return {keepOpen:true}};await Promise.all([loadRoster(),loadPasswordResetRequests(),loadPasswordResets()]);return {keepOpen:true}})}
